@@ -85,6 +85,7 @@ class Annot_Dataset(Dataset):
 if __name__ == "__main__":
     ds = Annot_Dataset(
         extracted_folder="dataset",
-        dataset_folder="physionet.org/files/leipzig-heart-center-ecg/1.0.0"
+        dataset_folder="physionet.org/files/leipzig-heart-center-ecg/1.0.0",
+        window_duration=0.3
     )
-    print(ds[1000])
+    print(ds[1000][0].shape)
