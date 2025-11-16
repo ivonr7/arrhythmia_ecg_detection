@@ -25,6 +25,9 @@ class Annot_Dataset(Dataset):
         self.labels = {
             label:i for i,label in enumerate(self.annot['labels'].unique())
         }
+        self.label_map= {
+            i:label for i,label in enumerate(self.annot['labels'].unique())
+        }
         self.nclasses = len(list(self.labels.keys()))
         self.signal_folder = Path(dataset_folder)
         self.window_duration = window_duration
@@ -63,6 +66,9 @@ class Annot_Dataset(Dataset):
     
     def __len__(self):
         return self.annot.shape[0]
+    def str_class(self,y):
+        index = torch.argmax(y)
+        return self.label_map[index]
     @staticmethod
     def get_dataset(dataset_folder:str):
         """
@@ -84,7 +90,7 @@ class Annot_Dataset(Dataset):
             This Function Extracts the signal window around a an annotation 
             building off yasnas code. If the signal window is OOB pad with zero to 
             retain window size
-            returns data window as a numpy array
+            returns data window as a window object 
         """
         signal_min = index - window_size
         signal_max = index + window_size
