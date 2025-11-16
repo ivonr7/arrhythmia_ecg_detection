@@ -17,7 +17,7 @@ def read_annots(data_folder:str, patients:pd.DataFrame,ext:str = 'atr'):
     for patient in patients['file_name']:
         yield wb.rdann(
                 str(Path(data_folder) / patient),ext
-            )
+            ),wb.rdrecord(str(Path(data_folder) / patient))
 
 def main(adults:str,children:str, data_folder:str, out_folder:str):
     patients = join_patients(
@@ -25,19 +25,20 @@ def main(adults:str,children:str, data_folder:str, out_folder:str):
         pd.read_csv(children)
     )
     annotations = []
-    for annot in tqdm(read_annots(data_folder,patients), desc="Reading Patient Annotations"):
+    for annot,signal in tqdm(read_annots(data_folder,patients), desc="Reading Patient Annotations"):
         labels = annot.symbol
         indicies = annot.sample.tolist()
         name = repeat(annot.record_name,len(labels))
         freq = repeat(annot.fs,len(labels))
         note = pd.Series(annot.aux_note).fillna("")
-        annotations = chain(annotations,zip(name,labels,note,indicies,freq))
+        size = repeat(signal.sig_len,len(labels))
+        annotations = chain(annotations,zip(name,labels,note,indicies,size,freq))
     
     # Concatenate the data
     # Write to output folder
     annot_df = pd.DataFrame(
         data=list(annotations),
-        columns=['file_name','labels','aux_note','indicies','frequency']
+        columns=['file_name','labels','aux_note','indicies','length','frequency']
     )
     out = Path(out_folder)
     out.mkdir(exist_ok=True,parents=True)
@@ -55,9 +56,9 @@ def main(adults:str,children:str, data_folder:str, out_folder:str):
 
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument('--adult-meta',type=str,required=True, help='path to addult metadata file')
+    parser.add_argument('--adult-meta',type=str,required=True, help='path to adult metadata file')
     parser.add_argument('--child-meta', type=str, required=True, help="path to child metadata csv")
-    parser.add_argument('--data-dir', type=str, required=True, help="Path to exported csvs (folder)")
+    parser.add_argument('--data-dir', type=str, required=True, help="Path to dataset(folder)")
     parser.add_argument('--out-dir',type=str, default="combined_dataset", help="Folder to write the metadata,signal and annotation files")
     args = parser.parse_args()
     main(
