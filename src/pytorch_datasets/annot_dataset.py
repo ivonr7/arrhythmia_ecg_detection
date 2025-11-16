@@ -6,6 +6,33 @@ import pandas as pd
 import numpy as np
 from dataclasses import dataclass
 
+NORMAL_DICT = {
+    'N',
+    'R',
+    'L',
+    'bBI',
+    'j',
+    '//A',
+    '//V'
+    'f'
+}
+BEAT_DICT = {
+    'N',
+    'R',
+    'L',
+    'b',
+    'j',
+    'X',
+    'A',
+    'a',
+    'V',
+    'F',
+    'J',
+    '/',
+    'f'
+}
+
+
 @dataclass
 class Window:
     midpoint:int
@@ -22,13 +49,23 @@ class Annot_Dataset(Dataset):
         ):
         super().__init__()
         self.meta,self.annot = Annot_Dataset.get_dataset(extracted_folder)
-        self.labels = {
-            label:i for i,label in enumerate(self.annot['labels'].unique())
-        }
-        self.label_map= {
-            i:label for i,label in enumerate(self.annot['labels'].unique())
-        }
-        self.nclasses = len(list(self.labels.keys()))
+        beat_mask = np.array([
+            True if l in BEAT_DICT else False \
+                for l in self.annot['labels']
+        ])        
+        self.beats = self.annot.loc[beat_mask,:].reset_index(drop=True).copy() 
+        self.beats['combined_label'] = self.beats['labels'] + self.beats['aux_note'].fillna("")
+        
+        if classification_task != 'binary':
+            self.labels2vec = {
+                label:i for i,label in enumerate(self.beats['combined_label'].unique())
+            }
+            self.vec2labels = {
+                i:label for i,label in enumerate(self.beats['combined_label'].unique())
+            }
+        else:
+            self.t = 0.5
+        self.nclasses = len(list(self.beats['combined_label'].unique()))
         self.signal_folder = Path(dataset_folder)
         self.window_duration = window_duration
         self.task = classification_task
@@ -45,7 +82,7 @@ class Annot_Dataset(Dataset):
             Y: tensor of size (n_classes) with the correct class 
             set to 1
         """
-        annot_row = self.annot.loc[index]
+        annot_row = self.beats.loc[index,:]
         fs = annot_row['frequency']
         window_size = int(fs * self.window_duration)
         window = Annot_Dataset.compute_window(
@@ -59,16 +96,22 @@ class Annot_Dataset(Dataset):
             sampto=window.end
         )
         X = np.pad(record.p_signal,(window.padding, (0,0)))
-        labels = torch.zeros(size = (self.nclasses,))
-        idx = self.labels[annot_row['labels']]
-        labels[idx] = 1
+        
+        if self.task == 'binary':
+            labels = 0 if annot_row['combined_label'] in NORMAL_DICT else 1
+        else:
+            labels = torch.zeros(size = (self.nclasses,))
+            idx = self.labels2vec[annot_row['combined_label']]
+            labels[idx] = 1
         return torch.tensor(X[:,:n_channels]), labels
     
     def __len__(self):
-        return self.annot.shape[0]
+        return self.labels.shape[0]
     def str_class(self,y):
+        if self.task == 'binary':
+            return self.y > self.t
         index = torch.argmax(y)
-        return self.label_map[index]
+        return self.vec2labels[index]
     @staticmethod
     def get_dataset(dataset_folder:str):
         """
@@ -108,6 +151,8 @@ if __name__ == "__main__":
     ds = Annot_Dataset(
         extracted_folder="dataset",
         dataset_folder="physionet.org/files/leipzig-heart-center-ecg/1.0.0",
-        window_duration=0.3
+        window_duration=0.3,
+        classification_task='binary'
     )
-    print(ds[2])
+    for X,y in ds:
+        print(X,y)
