@@ -1,5 +1,6 @@
 # Virtual environment
 *venv*
+*dataset
 # Dataset
 physionet.org
 # Byte-compiled / optimized / DLL files
@@ -209,3 +210,9 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+data/
+*.csv
+
+# System files
+.DS_Store
