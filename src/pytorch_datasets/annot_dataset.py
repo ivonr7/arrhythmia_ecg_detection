@@ -45,10 +45,11 @@ class Annot_Dataset(Dataset):
             self,extracted_folder:str,
             dataset_folder:str,
             window_duration:float = 0.3,
-            classification_task = 'binary'
+            classification_task = 'binary',
+            train = True
         ):
         super().__init__()
-        self.meta,self.annot = Annot_Dataset.get_dataset(extracted_folder)
+        self.meta,self.annot = Annot_Dataset.get_dataset(extracted_folder, train)
         beat_mask = np.array([
             True if l in BEAT_DICT else False \
                 for l in self.annot['labels']
@@ -113,18 +114,19 @@ class Annot_Dataset(Dataset):
         index = torch.argmax(y)
         return self.vec2labels[index]
     @staticmethod
-    def get_dataset(dataset_folder:str):
+    def get_dataset(dataset_folder:str, istrain:bool = True):
         """
             This function reads the output
             of the scripts/combine_dataset.py script
             returns a tuple containing (metadata,annotations) 
             dataframes
         """
+        prefix = 'train' if istrain else 'test'
         meta = pd.read_csv(
             Path(dataset_folder) / "patient_metadata.csv"
         )
         annot = pd.read_csv(
-            Path(dataset_folder) / "patient_annotations.csv"
+            Path(dataset_folder) / prefix / "patient_annotations.csv"
         )
         return meta, annot
     @staticmethod    
