@@ -4,6 +4,14 @@ import wfdb as wb
 from pathlib import Path
 import pandas as pd
 import numpy as np
+from dataclasses import dataclass
+
+@dataclass
+class Window:
+    midpoint:int
+    start:int
+    end:int
+    padding:tuple
 
 class Annot_Dataset(Dataset):
     def __init__(
@@ -38,14 +46,20 @@ class Annot_Dataset(Dataset):
         fs = annot_row['frequency']
         window_size = int(fs * self.window_duration)
         window = Annot_Dataset.compute_window(
-            self.signal_folder / annot_row['file_name'],
+            annot_row['length'],
             index = annot_row['indicies'],
             window_size=window_size
         )
+        record = wb.rdrecord(
+            self.signal_folder / annot_row['file_name'],
+            sampfrom=window.start,
+            sampto=window.end
+        )
+        X = np.pad(record.p_signal,(window.padding, (0,0)))
         labels = torch.zeros(size = (self.nclasses,))
         idx = self.labels[annot_row['labels']]
         labels[idx] = 1
-        return torch.tensor(window[:,:n_channels]), labels
+        return torch.tensor(X[:,:n_channels]), labels
     
     def __len__(self):
         return self.annot.shape[0]
@@ -65,7 +79,7 @@ class Annot_Dataset(Dataset):
         )
         return meta, annot
     @staticmethod    
-    def compute_window(record:str,index:int,window_size:int = 294):
+    def compute_window(length:int,index:int,window_size:int = 294):
         """
             This Function Extracts the signal window around a an annotation 
             building off yasnas code. If the signal window is OOB pad with zero to 
@@ -74,12 +88,14 @@ class Annot_Dataset(Dataset):
         """
         signal_min = index - window_size
         signal_max = index + window_size
-        padding = 0
+        padding = [0,0]
         if signal_min < 0:
-            padding= abs(signal_min)
+            padding[0] = abs(signal_min)
             signal_min = 0
-        record = wb.rdrecord(record,sampfrom=signal_min,sampto=signal_max)
-        return np.pad(record.p_signal,((padding,0), (0,0)))
+        if signal_max > length:
+            padding[1] = signal_max - length
+            signal_max = signal_max - padding[1]
+        return Window(index,signal_min,signal_max,padding)
     
 
 if __name__ == "__main__":
@@ -88,4 +104,4 @@ if __name__ == "__main__":
         dataset_folder="physionet.org/files/leipzig-heart-center-ecg/1.0.0",
         window_duration=0.3
     )
-    print(ds[1000][0].shape)
+    print(ds[2])
