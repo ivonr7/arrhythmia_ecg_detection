@@ -6,6 +6,19 @@ import pandas as pd
 import numpy as np
 from dataclasses import dataclass
 
+def get_validation_split(dataset, val_prop:float = 0.2):
+    unique = dataset.beats['file_name'].unique()
+    val_patients = np.random.choice(
+            unique,
+            size = int(val_prop * len(unique)),
+            replace = False
+        )
+    vals = dataset.beats[dataset.beats['file_name'].isin(val_patients)].index
+    train = dataset.beats[~dataset.beats['file_name'].isin(val_patients)].index
+
+    train = Subset(dataset, train)
+    test = Subset(dataset, vals)
+    return train, test
 NORMAL_DICT = {
     'N',
     'R',
@@ -46,7 +59,8 @@ class Annot_Dataset(Dataset):
             dataset_folder:str,
             window_duration:float = 0.3,
             classification_task = 'binary',
-            train = True
+            train = True,
+            transforms = None
         ):
         super().__init__()
         self.meta,self.annot = Annot_Dataset.get_dataset(extracted_folder, train)
@@ -70,6 +84,7 @@ class Annot_Dataset(Dataset):
         self.signal_folder = Path(dataset_folder)
         self.window_duration = window_duration
         self.task = classification_task
+        self.transform = transforms
     
 
     def __getitem__(self, index:int, n_channels:int = 12):
@@ -97,14 +112,16 @@ class Annot_Dataset(Dataset):
             sampto=window.end
         )
         X = np.pad(record.p_signal,(window.padding, (0,0)))
-        
+        X = torch.tensor(X[:,:n_channels])
+        if self.transform:
+            X = self.transform(X)
         if self.task == 'binary':
             labels = 0 if annot_row['combined_label'] in NORMAL_DICT else 1
         else:
             labels = torch.zeros(size = (self.nclasses,))
             idx = self.labels2vec[annot_row['combined_label']]
             labels[idx] = 1
-        return torch.tensor(X[:,:n_channels]), labels
+        return X, labels
     
     def __len__(self):
         return self.labels.shape[0]
@@ -156,5 +173,5 @@ if __name__ == "__main__":
         window_duration=0.3,
         classification_task='binary'
     )
-    for X,y in ds:
-        print(X,y)
+    X,y = ds[1000]
+    print(X,y)
