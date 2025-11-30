@@ -14,7 +14,6 @@ with app.setup:
     from pathlib import Path
 
 
-
 @app.cell
 def _():
     index = mo.ui.file_browser()
@@ -171,7 +170,6 @@ def _(sig):
 @app.cell
 def _(annot, sig):
     wb.plot_wfdb(record=sig, annotation=annot,figsize=(8,20))
-
     return
 
 

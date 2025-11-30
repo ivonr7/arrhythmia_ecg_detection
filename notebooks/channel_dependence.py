@@ -36,46 +36,36 @@ def _(ds):
 
 
 @app.function
-def chain_windows(ds:Annot_Dataset):
-    for i in tqdm(range(2000,20_000)):
-        yield ds[i][0].numpy().mean(axis = 0)
+def chain_windows(ds:Annot_Dataset,idx = []):
+    pca = PCA(n_components=1)
+    for i in tqdm(idx):
+        yield np.squeeze(pca.fit_transform(ds[i][0].T)), ds[i][1]
 
 
 @app.cell
 def _(ds):
-    signal = np.array(list(chain_windows(ds)))
-    signal = signal.reshape(-1,12)
-    return (signal,)
+    idx = np.random.randint(low=2000, high=len(ds) - 2000, size = 15000)
+
+    windows = list(chain_windows(ds,idx))
+
+
+    return (windows,)
 
 
 @app.cell
-def _(signal):
-    pca = PCA()
+def _(windows):
+    signal = np.array([window[0] for window in windows])
+    calls = np.array([window[1] for window in windows])
+    return calls, signal
+
+
+@app.cell
+def _(signal, sns):
+    pca = PCA(n_components=2)
     points = pca.fit_transform(signal)
-    viz = np.random.choice(np.arange(points.shape[0]), size=100_000)
-    plt.scatter(points[:,0],points[:,1])
-    return pca, points
-
-
-@app.cell
-def _(pca):
-    plt.plot(pca.explained_variance_ratio_)
-    plt.xlabel("PC")
-    plt.ylabel("Explained Variance")
-    plt.title("Explained Variance of PC's")
-    return
-
-
-@app.cell
-def _(pca):
-    plt.plot(np.cumsum(pca.explained_variance_ratio_), label = "Cumulative Explained Variance")
-    plt.axvline(x = 3,c = 'red', label = '90% Explained Variance')
-    plt.xlabel("Number of PCs")
-    plt.ylabel("Explained Variance")
-    plt.legend(frameon = False,bbox_to_anchor = (1,1.1),ncols = 2)
-    plt.grid(which='major')
-    plt.show()
-    return
+    d = pd.DataFrame(data=points[:,:2], columns=['PC1','PC2'])
+    sns.scatterplot(d, x = 'PC1', y = 'PC2')
+    return (points,)
 
 
 @app.cell(column=1)
@@ -98,11 +88,11 @@ def _(y):
 
 
 @app.cell
-def _(labels, points):
+def _(calls, points):
     n = (points[:,:2] - points[:,:2].mean(axis = 0)) / points[:,:2].std(axis = 0)
 
     samples = pd.DataFrame(data = n, columns = ["PC1","PC2"])
-    samples['annot'] = labels
+    samples['annot'] = calls
     return (samples,)
 
 
