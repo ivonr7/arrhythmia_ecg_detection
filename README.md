@@ -24,5 +24,8 @@ pip install -r requirements.txt
 ```
 ## Place dataset files:
 The necessary files to work with the dataset can be found [here](https://1sfu-my.sharepoint.com/personal/imv_sfu_ca/_layouts/15/onedrive.aspx?id=%2Fpersonal%2Fimv%5Fsfu%5Fca%2FDocuments%2Ffall2025%2Fdataset%2Ezip&parent=%2Fpersonal%2Fimv%5Fsfu%5Fca%2FDocuments%2Ffall2025&ga=1).
-- To regenerate them run scripts/combine_dataset.py
+- To regenerate them run
+```
+scripts/combine_dataset.py
+```
 - Pass the –help flag it will explain the parameters 
